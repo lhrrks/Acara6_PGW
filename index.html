@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leaflet JS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        html,
+        body,
+        #map {
+            width: 100%;
+            height: calc(100vh - 56px);
+            margin: 0;
+            padding: 0;
+        }
+
+        .leaflet-interactive {
+            outline: none !important;
+        }
+    </style>
+
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Flores Timur</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+                aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="https://dtk.sv.ugm.ac.id/" target="_blank"><i
+                                class="bi bi-link-45deg"></i> DTK-SV UGM</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#aboutModal"><i
+                                class="bi bi-info-circle"></i> About</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div id="map"></div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        // Inisialisasi peta
+        var map = L.map("map").setView([-8.3185225, 123.1656647], 11);
+
+        // Tile Layer Base Map
+        var basemap = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution:
+                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        });
+        basemap.addTo(map);
+
+        // Membuat Pane khusus agar urutan layer (z-index) dapat diatur
+        map.createPane('pane_polygon');
+        map.getPane('pane_polygon').style.zIndex = 400; // lapisan bawah
+
+        map.createPane('pane_jalan');
+        map.getPane('pane_jalan').style.zIndex = 401; // lapisan atas polygon
+
+        // Fungsi marker Bootstrap Icon berbentuk pin
+        function getMarkerIcon(namaUnsur) {
+            var config = {
+                "Gunung": { icon: "bi-triangle-fill", bg: "#b71c1c" },
+                "Tanjung": { icon: "bi-flag-fill", bg: "#0d47a1" },
+                "Teluk": { icon: "bi-water", bg: "#006064" },
+                "Toponimi": { icon: "bi-house-fill", bg: "#4a148c" }
+            };
+            var cfg = config[namaUnsur] || { icon: "bi-geo-alt-fill", bg: "#424242" };
+            var html = [
+                "<div style='",
+                "background:" + cfg.bg + ";",
+                "width:34px;height:34px;",
+                "border-radius:50% 50% 50% 0;",
+                "transform:rotate(-45deg);",
+                "border:2px solid white;",
+                "box-shadow:0 3px 8px rgba(0,0,0,0.4);",
+                "display:flex;align-items:center;justify-content:center;",
+                "'>",
+                "<i class='bi " + cfg.icon + "' style='",
+                "transform:rotate(45deg);",
+                "color:white;font-size:15px;",
+                "'></i>",
+                "</div>"
+            ].join("");
+            return L.divIcon({
+                html: html,
+                className: "",
+                iconSize: [34, 34],
+                iconAnchor: [5, 34],
+                popupAnchor: [12, -34]
+            });
+        }
+
+        // GeoJSON Point Toponimi
+        var toponimi = L.geoJSON(null, {
+            pointToLayer: function (feature, latlng) {
+                return L.marker(latlng, {
+                    icon: getMarkerIcon(feature.properties.NAMA_UNSUR)
+                });
+            },
+            onEachFeature: function (feature, layer) {
+                var popup_content =
+                    "<img src='images/" + feature.properties.image + "' alt='' width='200'><br>" +
+                    "Nama: " + feature.properties.TOPONIMI + "<br>" +
+                    "Koordinat: " + feature.geometry.coordinates[1] + ", " + feature.geometry.coordinates[0];
+
+                layer.bindPopup(popup_content);
+                layer.bindTooltip(feature.properties.TOPONIMI, {
+                    direction: "left",
+                    sticky: true
+                });
+            }
+        });
+
+        $.getJSON("geojson/toponimi.geojson", function (data) {
+            toponimi.addData(data);
+        });
+
+        // GeoJSON Polyline Jalan
+        var jalan = L.geoJSON(null, {
+            pane: 'pane_jalan',
+            style: function (feature) {
+                var namaUnsur = feature.properties.NAMA_UNSUR;
+                if (namaUnsur === "Jalan Propinsi") {
+                    return {
+                        color: "red",
+                        opacity: 1,
+                        weight: 3
+                    };
+                } else if (namaUnsur === "Jalan Kabupaten") {
+                    return {
+                        color: "red",
+                        opacity: 1,
+                        weight: 1.5,
+                        dashArray: "12, 8"
+                    };
+                } else {
+                    // Jalan Lain dan tipe lainnya
+                    return {
+                        color: "red",
+                        opacity: 1,
+                        weight: 1,
+                        dashArray: "4, 4"
+                    };
+                }
+            },
+            onEachFeature: function (feature, layer) {
+                var panjang_m = (feature.properties.panjang_km * 1000).toFixed(0);
+                var popup_content = "Fungsi: " + feature.properties.NAMA_UNSUR + "<br>" +
+                    "Panjang (m): " + panjang_m;
+
+                var tooltip_content = feature.properties.NAMA_UNSUR;
+
+                layer.bindPopup(popup_content);
+                layer.bindTooltip(tooltip_content, {
+                    direction: "auto",
+                    sticky: true,
+                });
+            }
+        });
+
+        $.getJSON("geojson/jalan.geojson", function (data) {
+            jalan.addData(data);
+        });
+
+        // GeoJSON Polygon Jumlah Penduduk
+        var jumlah_penduduk = L.geoJSON(null, {
+            pane: 'pane_polygon',
+            style: function (feature) {
+                if (feature.properties.Penduduk <= 12000) {
+                    return {
+                        opacity: 1,
+                        color: 'black',
+                        weight: 1.0,
+                        fillOpacity: 0.7,
+                        fillColor: '#ffffb2'
+                    }
+                }
+                if (feature.properties.Penduduk > 12000 && feature.properties.Penduduk <= 24000) {
+                    return {
+                        opacity: 1,
+                        color: 'black',
+                        weight: 1.0,
+                        fillOpacity: 0.7,
+                        fillColor: '#fd8d3c'
+                    }
+                }
+                if (feature.properties.Penduduk > 24000) {
+                    return {
+                        opacity: 1,
+                        color: 'black',
+                        weight: 1.0,
+                        fillOpacity: 0.7,
+                        fillColor: '#bd0026'
+                    }
+                }
+            },
+            onEachFeature: function (feature, layer) {
+                layer.on("click", function (e) {
+                    // Menyiapkan teks judul dan isi tabel
+                    document.getElementById("featureModalTitle").innerHTML = "Data Kependudukan";
+                    document.getElementById("featureModalBody").innerHTML =
+                        "<table class='table table-striped mb-0'>" +
+                        "<tr><th width='40%'>Kecamatan</th><td>" + feature.properties.WADMKC + "</td></tr>" +
+                        "<tr><th>Jumlah Penduduk</th><td>" + feature.properties.Penduduk + " Jiwa</td></tr>" +
+                        "<tr><th>Luas Wilayah</th><td>" + feature.properties.luas_km2 + " km&sup2;</td></tr>" +
+                        "</table>";
+
+                    // Membuka modal Bootstrap
+                    var myModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('featureModal'));
+                    myModal.show();
+                });
+
+                layer.bindTooltip(feature.properties.WADMKC, {
+                    direction: "auto",
+                    sticky: true,
+                });
+            }
+        });
+
+        $.getJSON("geojson/jumlah_penduduk.geojson", function (data) {
+            jumlah_penduduk.addData(data);
+        });
+
+        // Control Layer
+        var baseMaps = {
+            "OpenStreetMap": basemap,
+        };
+
+        var overlayMaps = {
+            "Toponimi<br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='background:#b71c1c;color:white;border-radius:4px;padding:1px 5px;font-size:11px'><i class='bi bi-triangle-fill'></i></span> Gunung<br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='background:#0d47a1;color:white;border-radius:4px;padding:1px 5px;font-size:11px'><i class='bi bi-flag-fill'></i></span> Tanjung<br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='background:#006064;color:white;border-radius:4px;padding:1px 5px;font-size:11px'><i class='bi bi-water'></i></span> Teluk<br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='background:#4a148c;color:white;border-radius:4px;padding:1px 5px;font-size:11px'><i class='bi bi-house-fill'></i></span> Pemukiman": toponimi,
+            "Jalan<br>&nbsp;&nbsp;&nbsp;&nbsp;<svg width='30' height='10' style='vertical-align:middle'><line x1='0' y1='5' x2='30' y2='5' stroke='red' stroke-width='3'/></svg> Propinsi<br>&nbsp;&nbsp;&nbsp;&nbsp;<svg width='30' height='10' style='vertical-align:middle'><line x1='0' y1='5' x2='30' y2='5' stroke='red' stroke-width='1.5' stroke-dasharray='8,5'/></svg> Kabupaten<br>&nbsp;&nbsp;&nbsp;&nbsp;<svg width='30' height='10' style='vertical-align:middle'><line x1='0' y1='5' x2='30' y2='5' stroke='red' stroke-width='1' stroke-dasharray='4,4'/></svg> Lain": jalan,
+            "Jumlah Penduduk<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<svg width='15' height='15' style='vertical-align:middle'><rect width='15' height='15' fill='#ffffb2' stroke='black' stroke-width='1'/></svg> &le; 12.000 jiwa<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<svg width='15' height='15' style='vertical-align:middle'><rect width='15' height='15' fill='#fd8d3c' stroke='black' stroke-width='1'/></svg> 12.001 - 24.000 jiwa<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<svg width='15' height='15' style='vertical-align:middle'><rect width='15' height='15' fill='#bd0026' stroke='black' stroke-width='1'/></svg> &gt; 24.000 jiwa": jumlah_penduduk,
+        };
+
+        L.control.layers(baseMaps, overlayMaps, { collapsed: true }).addTo(map);
+
+        // Menambahkan Scale Bar
+        L.control.scale({
+            position: "bottomleft",
+            metric: true,
+            imperial: false,
+        }).addTo(map);
+
+    </script>
+
+    <!-- Modal -->
+    <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="aboutModalLabel">About</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-striped mb-0">
+                        <tr>
+                            <th width="20%">Nama</th>
+                            <th width="5%">:</th>
+                            <td>Luhur Ramadani Suryana</td>
+                        </tr>
+                        <tr>
+                            <th>NIM</th>
+                            <th>:</th>
+                            <td>25/567828/SV/27279</td>
+                        </tr>
+                        <tr>
+                            <th>Kelas</th>
+                            <th>:</th>
+                            <td>B</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Modal -->
+    <div class="modal fade" id="featureModal" tabindex="-1" aria-labelledby="featureModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="featureModalTitle">Info Detail</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="featureModalBody">
+                    <!-- Konten dinamis masuk ke sini -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
